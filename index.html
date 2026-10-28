@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1420">
+<title>GoalPredict AI</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1420;color:#f4f7fb;font-family:Arial,sans-serif}
+main{max-width:760px;margin:auto;padding:20px}
+header{display:flex;align-items:center;gap:12px;margin:8px 0 22px}
+.ball{font-size:38px}.muted{color:#a9b9c8;font-size:13px;line-height:1.6}
+h1{font-size:25px;margin:0}h2{font-size:19px;margin:22px 0 12px}
+.green{color:#65e6a4}.tag{color:#65e6a4;font-size:11px;letter-spacing:2px}
+.card{background:#142332;border:1px solid #293d4f;border-radius:15px;padding:16px;margin:12px 0}
+.notice{background:#17332e;border-radius:12px;padding:14px;margin-bottom:20px}
+label{display:block;color:#c8d6e2;font-size:13px;margin:12px 0 6px}
+input{width:100%;padding:12px;background:#0b1420;color:white;border:1px solid #304252;border-radius:9px;font-size:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button{border:0;border-radius:10px;padding:14px;background:#218354;color:white;font-weight:bold;font-size:15px;width:100%;margin-top:16px}
+.metric{display:flex;justify-content:space-between;gap:10px;padding:13px 0;border-bottom:1px solid #304252}
+.metric strong{color:#65e6a4}.score{text-align:center;background:#17382f;padding:22px;border-radius:14px;margin-top:18px}
+.big{font-size:40px;font-weight:900;color:#65e6a4;margin:8px}
+.error{color:#ff9d91}.hidden{display:none}footer{text-align:center;color:#8192a5;font-size:11px;line-height:1.7;margin:24px 0}
+</style>
+</head>
+<body>
+<main>
+<header><div class="ball">⚽</div><div><h1>GoalPredict AI</h1><div class="tag">FOOTBALL ANALYTICS</div></div></header>
+<div class="notice"><strong class="green">Welcome to GoalPredict AI</strong><p class="muted">Explore football goal markets and match outcome estimates. Enter team averages below to analyze a match.</p><span class="muted">DEMO MODE — no live fixtures connected</span></div>
+<h2>Match analyzer</h2>
+<div class="card">
+<label for="home">Home team</label><input id="home" value="Arsenal">
+<label for="away">Away team</label><input id="away" value="Chelsea">
+<h3>Average goals per match</h3>
+<p class="muted">Use recent goals scored and conceded for each team. Example values are provided to demonstrate the calculator.</p>
+<div class="grid">
+<div><label for="hs">Home scored</label><input id="hs" type="number" min="0" max="10" step=".1" value="1.8"></div>
+<div><label for="hc">Home conceded</label><input id="hc" type="number" min="0" max="10" step=".1" value=".9"></div>
+<div><label for="as">Away scored</label><input id="as" type="number" min="0" max="10" step=".1" value="1.4"></div>
+<div><label for="ac">Away conceded</label><input id="ac" type="number" min="0" max="10" step=".1" value="1.2"></div>
+</div>
+<button id="analyze">⚡ ANALYZE MATCH</button>
+<p id="error" class="error"></p>
+</div>
+<section id="results" class="hidden">
+<div class="score"><div class="muted">MOST LIKELY SCORE</div><div class="big" id="score">1 - 1</div><div id="teams" class="muted"></div><p id="expected" class="green"></p></div>
+<h2>Goals markets</h2><div class="card" id="goals"></div>
+<h2>Match result (1X2)</h2><div class="card" id="winners"></div>
+<div class="notice"><strong class="green">Important</strong><p class="muted">These are statistical estimates based only on the averages you enter. They are not verified live data, guaranteed outcomes, or proof that a bet is safe or profitable.</p></div>
+</section>
+<footer>GOALPREDICT AI · DEMO VERSION<br>Statistical estimates are not guarantees.</footer>
+</main>
+<script>
+function poisson(l,n){let p=Math.exp(-l);for(let i=1;i<=n;i++)p*=l/i;return p}
+function pct(x){return (x*100).toFixed(1)+'%'}
+function metric(name,value){return '<div class="metric"><span>'+name+'</span><strong>'+pct(value)+'</strong></div>'}
+document.getElementById('analyze').addEventListener('click',()=>{
+const home=document.getElementById('home').value.trim();
+const away=document.getElementById('away').value.trim();
+const vals=['hs','hc','as','ac'].map(id=>document.getElementById(id).value.trim());
+const nums=vals.map(Number);
+const err=document.getElementById('error');
+err.textContent='';
+if(!home||!away||home.toLowerCase()===away.toLowerCase()||vals.some(v=>v==='')||nums.some(v=>!Number.isFinite(v)||v<0||v>10)){
+err.textContent='Enter two different teams and valid goal averages from 0 to 10.';return}
+const [hs,hc,as,ac]=nums;
+const lh=(hs+ac)/2,la=(as+hc)/2;
+let o15=0,o25=0,btts=0,hw=0,draw=0,aw=0,best={p:0,s:'0 - 0'};
+for(let h=0;h<=12;h++)for(let a=0;a<=12;a++){
+const p=poisson(lh,h)*poisson(la,a);
+if(h+a>=2)o15+=p;if(h+a>=3)o25+=p;if(h>0&&a>0)btts+=p;
+if(h>a)hw+=p;else if(h===a)draw+=p;else aw+=p;
+if(p>best.p)best={p,s:h+' - '+a};
+}
+document.getElementById('score').textContent=best.s;
+document.getElementById('teams').textContent=home+' vs '+away;
+document.getElementById('expected').textContent='Expected goals: '+lh.toFixed(2)+' - '+la.toFixed(2);
+document.getElementById('goals').innerHTML=metric('Over 1.5 goals',o15)+metric('Over 2.5 goals',o25)+metric('Both teams to score',btts);
+document.getElementById('winners').innerHTML=metric(home+' win',hw)+metric('Draw',draw)+metric(away+' win',aw);
+document.getElementById('results').classList.remove('hidden');
+});
+document.getElementById('analyze').click();
+</script>
+</body>
+</html>
+
